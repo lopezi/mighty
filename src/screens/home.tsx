@@ -27,7 +27,7 @@ const Home = () => {
       <Logo />
       <Text style={styles.title}>MightyByte React Native Challenge.</Text>
       <Text style={styles.subTitle}>
-        You are allowed to modify this project structure in any way you wish.
+        You are not allowed to modify this project structure in any way you wish.
       </Text>
     </View>
   );
