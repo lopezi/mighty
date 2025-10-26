@@ -3,6 +3,8 @@
   "hardReloadOnChange": false,
   "view": "browser",
   "template": "create-react-app",
-  "ports": [3000]
+  "container": {
+    "port": 3000
+  }
 }
 
