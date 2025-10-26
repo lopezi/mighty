@@ -1,0 +1,8 @@
+{
+  "infiniteLoopProtection": true,
+  "hardReloadOnChange": false,
+  "view": "browser",
+  "template": "create-react-app",
+  "ports": [3000]
+}
+
