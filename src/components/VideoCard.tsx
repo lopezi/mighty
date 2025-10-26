@@ -1,19 +1,34 @@
+/**
+ * VideoCard Component
+ * 
+ * A YouTube-style video card with hover preview functionality.
+ * Features:
+ * - Displays video thumbnail, title, channel info, and metadata
+ * - Hover effect that shows an enlarged popup after 1.8 seconds
+ * - Smooth animations using React portals for proper z-index handling
+ * - Action buttons (Watch Later, Add to Queue) in hover popup
+ * - Responsive design compatible with React Native Web
+ */
+
 import * as React from "react";
 import { View, Text, Image, StyleSheet, Pressable } from "react-native";
 import ReactDOM from "react-dom";
 
+/**
+ * Props for the VideoCard component
+ */
 interface VideoCardProps {
-  thumbnailUrl: string;
-  duration?: string;
-  title: string;
-  channelName: string;
-  channelAvatarUrl?: string;
-  isVerified?: boolean;
-  views?: string;
-  uploadTime: string;
-  onPress?: () => void;
-  onMenuPress?: () => void;
-  cardIndex?: number;
+  thumbnailUrl: string;        // URL of the video thumbnail image
+  duration?: string;            // Video duration (e.g., "4:27")
+  title: string;                // Video title
+  channelName: string;          // Channel/creator name
+  channelAvatarUrl?: string;    // Channel avatar image URL
+  isVerified?: boolean;         // Whether channel is verified
+  views?: string;               // View count (e.g., "1.6M views")
+  uploadTime: string;           // Upload date/time
+  onPress?: () => void;         // Callback when card is clicked
+  onMenuPress?: () => void;     // Callback when menu button is clicked
+  cardIndex?: number;           // Index for z-index stacking
 }
 
 const VideoCard: React.FC<VideoCardProps> = ({
@@ -29,35 +44,46 @@ const VideoCard: React.FC<VideoCardProps> = ({
   onMenuPress,
   cardIndex = 0,
 }) => {
-  const [isHovered, setIsHovered] = React.useState(false);
-  const [showPopup, setShowPopup] = React.useState(false);
-  const [popupVisible, setPopupVisible] = React.useState(false);
-  const wrapperRef = React.useRef<any>(null);
-  const hoverTimeoutRef = React.useRef<any>(null);
-  const animationTimeoutRef = React.useRef<any>(null);
+  // State management for hover effects and popup
+  const [isHovered, setIsHovered] = React.useState(false);           // True when mouse is over card
+  const [showPopup, setShowPopup] = React.useState(false);           // True when popup should be rendered
+  const [popupVisible, setPopupVisible] = React.useState(false);     // True when popup animation should play
+  
+  // Refs for DOM manipulation and timers
+  const wrapperRef = React.useRef<any>(null);                        // Reference to card wrapper for positioning
+  const hoverTimeoutRef = React.useRef<any>(null);                   // Timeout for delayed popup appearance
+  const animationTimeoutRef = React.useRef<any>(null);               // Timeout for animation timing
+  
+  // Popup position calculated from card's DOM position
   const [popupRect, setPopupRect] = React.useState<{
     top: number;
     left: number;
     width: number;
   } | null>(null);
 
+  /**
+   * Handle mouse entering the card
+   * Starts a 1.8 second timer before showing the popup
+   */
   const handleHoverIn = () => {
     console.log('Hover in triggered');
     setIsHovered(true);
     
-    // Clear any existing timeout
+    // Clear any existing timeout to prevent multiple timers
     if (hoverTimeoutRef.current) {
       clearTimeout(hoverTimeoutRef.current);
     }
     
-    // Show popup after 2000ms of hovering
+    // Show popup after 1800ms (1.8 seconds) of continuous hovering
     hoverTimeoutRef.current = setTimeout(() => {
       console.log('Timeout completed, showing popup');
       try {
-        // Measure the card position in the viewport (RN Web forwards the ref to DOM)
+        // Measure the card's position in the viewport
+        // React Native Web forwards refs to actual DOM elements
         const rect = (wrapperRef.current as any)?.getBoundingClientRect?.();
         console.log('Card rect:', rect);
         if (rect) {
+          // Calculate popup position with 20px padding on all sides
           setPopupRect({
             top: rect.top + window.scrollY,
             left: rect.left + window.scrollX,
@@ -65,7 +91,8 @@ const VideoCard: React.FC<VideoCardProps> = ({
           });
           setShowPopup(true);
           
-          // Trigger animation after a frame
+          // Trigger fade-in animation after a single frame (10ms)
+          // This ensures the portal is mounted before animation starts
           animationTimeoutRef.current = setTimeout(() => {
             setPopupVisible(true);
           }, 10);
@@ -76,10 +103,15 @@ const VideoCard: React.FC<VideoCardProps> = ({
     }, 1800);
   };
 
+  /**
+   * Handle mouse leaving the card
+   * Only closes if popup hasn't appeared yet
+   */
   const handleHoverOut = (e?: any) => {
     console.log('Hover out triggered', e);
     
-    // Don't close if we're moving to the portal
+    // Don't close if popup is already showing
+    // User needs to move mouse away from popup itself to close
     if (showPopup) {
       console.log('Popup is showing, ignoring hover out');
       return;
@@ -90,13 +122,20 @@ const VideoCard: React.FC<VideoCardProps> = ({
       clearTimeout(hoverTimeoutRef.current);
     }
     
+    // Reset all hover states
     setIsHovered(false);
     setShowPopup(false);
     setPopupRect(null);
   };
 
+  /**
+   * Handle mouse leaving the popup portal
+   * Triggers fade-out animation and cleanup
+   */
   const handlePortalLeave = () => {
     console.log('Portal leave triggered');
+    
+    // Clear all timers
     if (hoverTimeoutRef.current) {
       clearTimeout(hoverTimeoutRef.current);
     }
@@ -104,16 +143,20 @@ const VideoCard: React.FC<VideoCardProps> = ({
       clearTimeout(animationTimeoutRef.current);
     }
     
+    // Reset hover state and start fade-out animation
     setIsHovered(false);
     setPopupVisible(false);
     
-    // Wait for fade out animation before removing popup
+    // Wait for fade-out animation (200ms) before removing popup from DOM
     setTimeout(() => {
       setShowPopup(false);
       setPopupRect(null);
     }, 200);
   };
 
+  /**
+   * Cleanup effect - clear all timers when component unmounts
+   */
   React.useEffect(() => {
     return () => {
       if (hoverTimeoutRef.current) {
@@ -126,29 +169,38 @@ const VideoCard: React.FC<VideoCardProps> = ({
   }, []);
 
   return (
+    // Wrapper View with mouse event handlers for hover detection
     <View 
       ref={wrapperRef} 
       style={[styles.wrapper, isHovered && styles.wrapperHovered]}
-      // @ts-ignore - web-only events
+      // @ts-ignore - web-only events (React Native Web supports these)
       onMouseEnter={handleHoverIn}
       onMouseLeave={handleHoverOut}
     >
+      {/* Main card content - clickable */}
       <Pressable
         onPress={onPress}
         style={styles.pressableContainer}
       >
+        {/* Card container - fades when popup appears */}
         <View style={[styles.container, showPopup && styles.containerHovered]}>
+        
+        {/* Thumbnail section */}
         <View style={styles.thumbnailContainer}>
           <Image
             source={{ uri: thumbnailUrl }}
             style={styles.thumbnail as any}
             resizeMode="cover"
           />
+          
+          {/* Duration badge - shown when not hovering */}
           {duration && !isHovered && (
             <View style={styles.durationBadge}>
               <Text style={styles.durationText}>{duration}</Text>
             </View>
           )}
+          
+          {/* "Keep hovering to play" badge - shown during hover delay */}
           {isHovered && !showPopup && (
             <View style={styles.hoverBadge}>
               <Text style={styles.hoverBadgeText}>Keep hovering to play</Text>

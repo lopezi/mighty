@@ -1,3 +1,15 @@
+/**
+ * Home Screen Component
+ * 
+ * Main screen displaying a grid of YouTube videos with search and infinite scroll.
+ * Features:
+ * - Search bar for querying videos
+ * - Responsive grid layout (1-4 columns based on screen width)
+ * - Infinite scrolling with pagination
+ * - Loading states and error handling
+ * - YouTube Data API v3 integration
+ */
+
 import * as React from "react";
 import {
   View,
@@ -12,6 +24,14 @@ import {
 import VideoCard from "../components/VideoCard";
 import { searchVideos, formatDate, YouTubeVideo } from "../services/youtubeApi";
 
+/**
+ * Calculate number of columns based on screen width
+ * Responsive breakpoints:
+ * - 1200px+: 4 columns (desktop)
+ * - 900px+: 3 columns (tablet landscape)
+ * - 600px+: 2 columns (tablet portrait)
+ * - <600px: 1 column (mobile)
+ */
 const getColumnCount = (width: number) => {
   if (width >= 1200) return 4;
   if (width >= 900) return 3;
@@ -20,15 +40,19 @@ const getColumnCount = (width: number) => {
 };
 
 const Home = () => {
-  const [videos, setVideos] = React.useState<YouTubeVideo[]>([]);
-  const [loading, setLoading] = React.useState(true);
-  const [loadingMore, setLoadingMore] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = React.useState("programming");
-  const [pageToken, setPageToken] = React.useState<string | null>(null);
-  const [windowWidth, setWindowWidth] = React.useState(Dimensions.get("window").width);
-  const scrollViewRef = React.useRef<any>(null);
+  // State management
+  const [videos, setVideos] = React.useState<YouTubeVideo[]>([]);              // List of videos
+  const [loading, setLoading] = React.useState(true);                          // Initial loading state
+  const [loadingMore, setLoadingMore] = React.useState(false);                 // Loading more videos state
+  const [error, setError] = React.useState<string | null>(null);               // Error message
+  const [searchQuery, setSearchQuery] = React.useState("programming");         // Current search query
+  const [pageToken, setPageToken] = React.useState<string | null>(null);       // Pagination token from YouTube API
+  const [windowWidth, setWindowWidth] = React.useState(Dimensions.get("window").width); // Current window width
+  const scrollViewRef = React.useRef<any>(null);                               // Reference to ScrollView for scroll detection
 
+  /**
+   * Listen for window resize events to update grid layout
+   */
   React.useEffect(() => {
     const subscription = Dimensions.addEventListener("change", ({ window }) => {
       setWindowWidth(window.width);
@@ -36,22 +60,33 @@ const Home = () => {
     return () => subscription?.remove();
   }, []);
 
+  /**
+   * Fetch videos from YouTube API
+   * @param query - Search query string
+   * @param isLoadMore - If true, appends to existing videos; if false, replaces them
+   */
   const fetchVideos = async (query: string, isLoadMore: boolean = false) => {
     try {
+      // Set appropriate loading state
       if (isLoadMore) {
         setLoadingMore(true);
       } else {
         setLoading(true);
-        setPageToken(null);
+        setPageToken(null); // Reset pagination for new search
       }
       setError(null);
+      
+      // Call YouTube API with pagination token if loading more
       const results = await searchVideos(query, 20, isLoadMore ? pageToken : null);
       
+      // Update videos list
       if (isLoadMore) {
-        setVideos((prev) => [...prev, ...results.items]);
+        setVideos((prev) => [...prev, ...results.items]); // Append to existing
       } else {
-        setVideos(results.items);
+        setVideos(results.items); // Replace with new results
       }
+      
+      // Save pagination token for next page
       setPageToken(results.nextPageToken);
     } catch (err) {
       setError("Failed to load videos. Please try again.");
@@ -62,36 +97,64 @@ const Home = () => {
     }
   };
 
+  /**
+   * Load initial videos on component mount
+   */
   React.useEffect(() => {
     fetchVideos(searchQuery);
   }, []);
 
+  /**
+   * Handle search button click
+   * Validates query and triggers new search
+   */
   const handleSearch = () => {
     if (searchQuery.trim()) {
       fetchVideos(searchQuery);
     }
   };
 
+  /**
+   * Handle video card click
+   * @param videoId - YouTube video ID
+   */
   const handleVideoPress = (videoId: string) => {
     console.log("Video pressed:", videoId);
+    // TODO: Navigate to video player or open YouTube
   };
 
+  /**
+   * Handle menu button click on video card
+   * @param videoId - YouTube video ID
+   */
   const handleMenuPress = (videoId: string) => {
     console.log("Menu pressed for video:", videoId);
+    // TODO: Show context menu with options
   };
 
+  /**
+   * Handle scroll events for infinite scrolling
+   * Loads more videos when user scrolls near the bottom
+   */
   const handleScroll = (event: any) => {
     const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
-    const paddingToBottom = 20;
+    const paddingToBottom = 20; // Trigger load 20px before reaching bottom
+    
+    // Check if user has scrolled close to bottom
     const isCloseToBottom =
       layoutMeasurement.height + contentOffset.y >=
       contentSize.height - paddingToBottom;
 
+    // Load more videos if:
+    // - Near bottom
+    // - Not already loading
+    // - More pages available (pageToken exists)
     if (isCloseToBottom && !loadingMore && !loading && pageToken) {
       fetchVideos(searchQuery, true);
     }
   };
 
+  // Loading state - show spinner
   if (loading) {
     return (
       <View style={styles.centerContainer}>
@@ -101,6 +164,7 @@ const Home = () => {
     );
   }
 
+  // Error state - show error message with retry button
   if (error) {
     return (
       <View style={styles.centerContainer}>
